@@ -50,10 +50,19 @@ def _html(title: str, body: str) -> bytes:
   .card {{ background: #132237; border-radius: 12px; padding: 2rem 2.5rem; text-align: center;
            box-shadow: 0 4px 24px rgba(0,0,0,.4); max-width: 360px; }}
   h2 {{ margin: 0 0 .5rem; font-size: 2rem; }}
-  p  {{ color: #94a3b8; margin: 0; }}
+  p  {{ color: #94a3b8; margin: 0 0 1rem; }}
+  .bar {{ height: 4px; background: #1a3fc4; border-radius: 2px;
+          animation: shrink 5s linear forwards; }}
+  @keyframes shrink {{ from {{ width: 100%; }} to {{ width: 0%; }} }}
+  .note {{ font-size: .8rem; color: #4a5568; }}
 </style>
+<script>setTimeout(() => window.close(), 5000);</script>
 </head>
-<body><div class="card">{body}</div></body></html>""".encode()
+<body><div class="card">
+  {body}
+  <div class="bar"></div>
+  <p class="note" style="margin-top:.75rem">Closing in 5 seconds…</p>
+</div></body></html>""".encode()
 
 
 class Handler(BaseHTTPRequestHandler):
