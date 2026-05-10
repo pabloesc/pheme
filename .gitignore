@@ -1,0 +1,27 @@
+# Secrets — never commit these
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Runtime data — generated at runtime, not source
+data/
+*.log
+
+# Assets — logo is local-only
+assets/pheme-logo.png
+
+# macOS
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+*.swp
