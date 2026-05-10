@@ -128,6 +128,7 @@ def main(dry_run: bool = False) -> None:
         readme_bytes=None,
         recipient=recipient,
         subject_prefix="Pheme Weekly",
+        show_actions=False,
     )
     print(f"[{today}] Weekly done.")
 

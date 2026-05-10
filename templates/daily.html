@@ -156,6 +156,7 @@
                 {{ item.summary }}
               </div>
 
+              {% if show_actions %}
               {# Action links — handled by background server.py #}
               <div style="margin-top:10px;">
                 <a href="{{ server_url }}/pick?id={{ item.id }}"
@@ -174,6 +175,7 @@
                   &#128078;
                 </a>
               </div>
+              {% endif %}
 
             </td>
           </tr>
@@ -259,6 +261,7 @@
               {{ repo.description }}
             </p>
 
+            {% if show_actions %}
             {# Star for weekly action #}
             <div style="margin-top:14px;">
               <a href="{{ server_url }}/pick-repo?id={{ repo.id }}" style="
@@ -270,6 +273,7 @@
                 background: rgba(63,185,80,0.06);
               ">&#11088; Save as Repo of the Week</a>
             </div>
+            {% endif %}
           </td>
         </tr>
 

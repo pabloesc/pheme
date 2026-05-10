@@ -57,6 +57,7 @@ def _render_html(
     has_image: bool,
     has_logo: bool,
     has_readme: bool,
+    show_actions: bool = True,
 ) -> str:
     items_by_section: dict[str, list] = {s: [] for s in SECTION_ORDER}
     for item in newsletter.get("items", []):
@@ -81,6 +82,7 @@ def _render_html(
         has_readme=has_readme,
         readme_cid=_README_CID,
         server_url=os.environ.get("SERVER_URL", "http://localhost:8765"),
+        show_actions=show_actions,
     )
 
 
@@ -90,6 +92,7 @@ def send_newsletter(
     readme_bytes: bytes | None = None,
     recipient: str = "elterry1@gmail.com",
     subject_prefix: str = "Pheme",
+    show_actions: bool = True,
 ) -> None:
     resend.api_key = os.environ["RESEND_API_KEY"]
 
@@ -100,6 +103,7 @@ def send_newsletter(
         has_image=image_bytes is not None,
         has_logo=logo_bytes is not None,
         has_readme=readme_bytes is not None,
+        show_actions=show_actions,
     )
 
     def _attachment(content: bytes, filename: str, mime: str, cid: str) -> dict:
