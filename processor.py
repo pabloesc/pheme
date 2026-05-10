@@ -2,11 +2,67 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import subprocess
+import time
 import anthropic
 import httpx
 import openai
+import requests
 from config import DAILY_MAX_ITEMS
 from fetcher import NewsItem
+
+_LMS = "/Applications/LM Studio.app/Contents/Resources/app/.webpack/lms"
+_LMS_API = "http://localhost:1234"
+
+
+def _lms_loaded_model() -> str | None:
+    """Return the identifier of the currently loaded LLM, or None."""
+    try:
+        data = requests.get(f"{_LMS_API}/api/v0/models", timeout=5).json()
+        for m in data.get("data", []):
+            if m.get("type") == "llm" and m.get("state") == "loaded":
+                return m["id"]
+    except Exception:
+        pass
+    return None
+
+
+def ensure_model_loaded(model_id: str | None = None) -> str:
+    """Load the LLM into LM Studio if not already loaded. Returns the model identifier."""
+    model_id = model_id or os.environ.get("LLM_MODEL", "qwen2.5-72b-instruct")
+    loaded = _lms_loaded_model()
+    if loaded:
+        print(f"  [lms] Model already loaded: {loaded}")
+        return loaded
+    print(f"  [lms] Loading model {model_id} …")
+    result = subprocess.run(
+        [_LMS, "load", model_id, "-y", "--gpu", "max"],
+        capture_output=True, text=True, timeout=300,
+    )
+    if result.returncode != 0:
+        raise RuntimeError(f"lms load failed: {result.stderr.strip()}")
+    # Wait until it appears as loaded
+    for _ in range(60):
+        if _lms_loaded_model():
+            print(f"  [lms] Model loaded.")
+            return model_id
+        time.sleep(3)
+    raise RuntimeError("Model did not become ready after load.")
+
+
+def unload_model() -> None:
+    """Unload the LLM from LM Studio to free memory."""
+    if not _lms_loaded_model():
+        return
+    print("  [lms] Unloading model to free memory …")
+    result = subprocess.run(
+        [_LMS, "unload", "--all"],
+        capture_output=True, text=True, timeout=60,
+    )
+    if result.returncode == 0:
+        print("  [lms] Model unloaded.")
+    else:
+        print(f"  [lms] Unload warning: {result.stderr.strip()}")
 
 SECTIONS = ["MLOps / ModelOps", "LLMOps / AgentOps", "Kubernetes & Compute", "Research"]
 

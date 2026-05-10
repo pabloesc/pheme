@@ -5,6 +5,7 @@ Run manually:  python main.py
 Dry-run:       python main.py --dry-run   (no email, no external API calls beyond Claude)
 Test mode:     python main.py --test      (3 articles, 2 repos, fast model output)
 """
+import os
 import sys
 from datetime import date
 from dotenv import load_dotenv
@@ -12,7 +13,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from fetcher import fetch_all, fetch_github_repos
-from processor import curate
+from processor import curate, ensure_model_loaded, unload_model
 from image_gen import generate_header_image
 from repo_screenshot import screenshot_readme
 from mailer import send_newsletter
@@ -20,6 +21,7 @@ from mailer import send_newsletter
 
 def main(dry_run: bool = False, test_mode: bool = False) -> None:
     today = date.today().isoformat()
+    provider = os.environ.get("LLM_PROVIDER", "anthropic").lower()
     print(f"[{today}] Pheme — starting{'  [TEST MODE]' if test_mode else ''}")
 
     print("  Fetching news...")
@@ -39,8 +41,14 @@ def main(dry_run: bool = False, test_mode: bool = False) -> None:
         print("  No articles found — skipping.")
         return
 
+    if provider == "local":
+        ensure_model_loaded()
+
     print("  Curating with Claude...")
     newsletter = curate(items, github_repos)
+
+    if provider == "local":
+        unload_model()
     selected  = len(newsletter.get("items", []))
     sections  = len({i["section"] for i in newsletter["items"]})
     repo      = newsletter.get("repo_of_day")
