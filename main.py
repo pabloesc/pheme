@@ -14,6 +14,7 @@ load_dotenv()
 
 from fetcher import fetch_all, fetch_github_repos
 from processor import curate, ensure_model_loaded, unload_model
+from config import DAILY_CANDIDATE_ITEMS
 from image_gen import generate_header_image
 from repo_screenshot import screenshot_readme
 from mailer import send_newsletter
@@ -31,6 +32,9 @@ def main(dry_run: bool = False, test_mode: bool = False) -> None:
     print("  Fetching GitHub repos...")
     github_repos = fetch_github_repos()
     print(f"  Fetched {len(github_repos)} candidate repos")
+
+    items = items[:DAILY_CANDIDATE_ITEMS]
+    print(f"  Using top {len(items)} candidates")
 
     if test_mode:
         items = items[:3]
