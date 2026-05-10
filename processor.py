@@ -115,7 +115,7 @@ Respond ONLY with valid JSON — no markdown, no code fences:
 """
 
 
-def _build_user_message(items: list[NewsItem], github_repos: list[dict] | None) -> str:
+def _build_user_message(items: list[NewsItem], github_repos: list[dict] | None, max_items: int = DAILY_MAX_ITEMS) -> str:
     articles_text = "\n\n".join(
         f"[{i+1}] SOURCE: {item['source']}\nTITLE: {item['title']}\nURL: {item['url']}\nSNIPPET: {item['snippet'] or '(no snippet)'}"
         for i, item in enumerate(items)
@@ -129,7 +129,7 @@ def _build_user_message(items: list[NewsItem], github_repos: list[dict] | None) 
         )
     return (
         f"Here are today's {len(items)} candidate articles. "
-        f"Curate the best {DAILY_MAX_ITEMS} and pick a Repo of the Day."
+        f"Curate the best {max_items} and pick a Repo of the Day."
         f"\n\n{articles_text}{repos_text}"
     )
 
@@ -185,11 +185,15 @@ def _curate_local(user_content: str) -> dict:
                 completion_tokens = chunk.usage.completion_tokens
     raw = "".join(chunks).strip()
     print(f"  Tokens — input: {prompt_tokens}, output: {completion_tokens}")
+    # Strip markdown code fences the model sometimes adds despite instructions
+    if raw.startswith("```"):
+        raw = raw.split("\n", 1)[-1]          # drop opening ```json line
+        raw = raw.rsplit("```", 1)[0].strip()  # drop closing ```
     return json.loads(raw)
 
 
-def curate(items: list[NewsItem], github_repos: list[dict] | None = None) -> dict:
-    user_content = _build_user_message(items, github_repos)
+def curate(items: list[NewsItem], github_repos: list[dict] | None = None, max_items: int | None = None) -> dict:
+    user_content = _build_user_message(items, github_repos, max_items=max_items or DAILY_MAX_ITEMS)
     provider = os.environ.get("LLM_PROVIDER", "anthropic").lower()
 
     print(f"  Provider: {provider}")

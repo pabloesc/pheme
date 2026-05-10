@@ -5,9 +5,11 @@ Run manually:  python main.py
 Dry-run:       python main.py --dry-run   (no email, no external API calls beyond Claude)
 Test mode:     python main.py --test      (3 articles, 2 repos, fast model output)
 """
+import json
 import os
 import sys
 from datetime import date
+from pathlib import Path
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -60,8 +62,12 @@ def main(dry_run: bool = False, test_mode: bool = False) -> None:
     if repo:
         print(f"  Repo of the Day: {repo['full_name']}")
 
+    # Save newsletter so weekly digest can reference it
+    data_dir = Path(__file__).parent / "data"
+    data_dir.mkdir(exist_ok=True)
+    (data_dir / f"{today}.json").write_text(json.dumps(newsletter, indent=2))
+
     if dry_run:
-        import json
         print("\n--- DRY RUN: newsletter JSON ---")
         print(json.dumps(newsletter, indent=2))
         print("--- end ---")

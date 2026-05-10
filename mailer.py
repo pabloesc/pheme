@@ -1,3 +1,4 @@
+from __future__ import annotations
 import base64
 import os
 from datetime import date
@@ -87,7 +88,8 @@ def send_newsletter(
     newsletter: dict,
     image_bytes: bytes | None = None,
     readme_bytes: bytes | None = None,
-    recipient: str = "pablo.escobardelaoliva@outlook.com",
+    recipient: str = "elterry1@gmail.com",
+    subject_prefix: str = "Pheme",
 ) -> None:
     resend.api_key = os.environ["RESEND_API_KEY"]
 
@@ -120,7 +122,7 @@ def send_newsletter(
     params: resend.Emails.SendParams = {
         "from":        os.environ.get("RESEND_FROM", "Pheme <onboarding@resend.dev>"),
         "to":          [recipient],
-        "subject":     f"Pheme — {today}",
+        "subject":     f"{subject_prefix} — {today}",
         "html":        html,
         "attachments": attachments,
     }
