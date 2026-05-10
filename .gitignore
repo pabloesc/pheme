@@ -15,8 +15,6 @@ build/
 data/
 *.log
 
-# Assets — logo is local-only
-assets/pheme-logo.png
 
 # macOS
 .DS_Store

@@ -1,3 +1,7 @@
+<div align="center">
+  <img src="assets/pheme-logo.png" width="180" alt="Pheme">
+</div>
+
 # Pheme
 
 > *In Greek mythology, Pheme was the goddess of fame, rumor, and news — with a hundred eyes, a hundred ears, and a hundred mouths, she spread word of events across the world.*
