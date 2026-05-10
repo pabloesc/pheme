@@ -34,9 +34,10 @@ def ensure_model_loaded(model_id: str | None = None) -> str:
     if loaded:
         print(f"  [lms] Model already loaded: {loaded}")
         return loaded
-    print(f"  [lms] Loading model {model_id} …")
+    ctx = os.environ.get("LLM_CONTEXT_LENGTH", "8192")
+    print(f"  [lms] Loading model {model_id} (context {ctx}) …")
     result = subprocess.run(
-        [_LMS, "load", model_id, "-y", "--gpu", "max"],
+        [_LMS, "load", model_id, "-y", "--gpu", "max", "-c", ctx],
         capture_output=True, text=True, timeout=300,
     )
     if result.returncode != 0:
