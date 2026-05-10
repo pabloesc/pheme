@@ -11,6 +11,7 @@
 - **Daily**: a curated briefing (max 12 stories) sent to you alone, powered by Claude + DALL-E 3
 - **Weekly**: a hand-picked digest sent to your whole team via Resend Audiences (5–150 people)
 - **Self-improving**: your 👍/👎 feedback trains the curation prompt and keyword filters over time
+- **Local mode**: run entirely on a Mac (Apple Silicon) with LM Studio + FLUX — zero API cost
 
 ---
 
@@ -290,6 +291,131 @@ Until `RESEND_FROM_WEEKLY` is set, `weekly.py` compiles and prints the digest lo
 | **Monthly** | | **~$6.00/month** |
 
 System prompt caching reduces Claude input cost ~10–15% after the first run each day.
+
+---
+
+## Running fully locally on a Mac — zero API cost
+
+If you own an Apple Silicon Mac (M1/M2/M3/M4), you can replace both Claude and DALL-E 3 with local models and run Pheme for **~$0/month** (just electricity). No tokens, no rate limits, no data leaving your machine.
+
+This works because Apple Silicon's unified memory architecture makes large language models run efficiently — the GPU, CPU, and Neural Engine all share the same memory pool, so a 48 GB MacBook can hold and run models that would require a $10,000 server GPU elsewhere.
+
+### Step 1 — Install LM Studio
+
+Download from [lmstudio.ai](https://lmstudio.ai) (free). LM Studio provides a local server with an **OpenAI-compatible API** at `http://localhost:1234/v1`, so Pheme can talk to it using the same interface as the cloud APIs.
+
+> **Enable the local server**: in LM Studio → **Local Server** tab → Start Server (port 1234).
+> Check **"Keep model in memory"** so it doesn't unload between requests.
+
+### Step 2 — Choose your model by RAM
+
+Pick the best model that fits your Mac's unified memory. Download it from the **Discover** tab in LM Studio — search by name.
+
+#### 16 GB RAM
+
+| Model | Download name in LM Studio | Quality |
+|-------|---------------------------|---------|
+| **Phi-4 14B Q4_K_M** ✅ recommended | `microsoft/phi-4-GGUF` | ★★★★☆ |
+| Qwen 2.5 7B Q8 | `Qwen/Qwen2.5-7B-Instruct-GGUF` | ★★★☆☆ |
+| Llama 3.1 8B Q8 | `lmstudio-community/Meta-Llama-3.1-8B-Instruct-GGUF` | ★★★☆☆ |
+
+Phi-4 14B punches above its weight on structured JSON tasks — best choice at 16 GB.
+
+#### 24 GB RAM
+
+| Model | Download name in LM Studio | Quality |
+|-------|---------------------------|---------|
+| **Qwen 2.5 32B Q4_K_M** ✅ recommended | `Qwen/Qwen2.5-32B-Instruct-GGUF` | ★★★★★ |
+| Gemma 3 27B Q4_K_M | `lmstudio-community/gemma-3-27b-it-GGUF` | ★★★★☆ |
+| Phi-4 14B Q8 | `microsoft/phi-4-GGUF` | ★★★★☆ |
+
+Qwen 2.5 32B is the best open model for structured output and summarization at this memory tier.
+
+#### 48 GB RAM
+
+| Model | Download name in LM Studio | Quality vs Claude Sonnet |
+|-------|---------------------------|--------------------------|
+| **Qwen 2.5 72B Q4_K_M** ✅ recommended | `Qwen/Qwen2.5-72B-Instruct-GGUF` | ~90% |
+| Llama 3.3 70B Q4_K_M | `lmstudio-community/Llama-3.3-70B-Instruct-GGUF` | ~88% |
+| DeepSeek-R1 70B Q4_K_M | `lmstudio-community/DeepSeek-R1-Distill-Llama-70B-GGUF` | ~85% |
+
+Qwen 2.5 72B is the best open-source model for Pheme's use case — excellent instruction following, native JSON mode, and 32k context window (enough for ~20k token curation inputs). The quality gap vs Claude Sonnet narrows to ~10% for this specific task.
+
+### Step 3 — LM Studio server settings
+
+In the **Local Server** tab, before loading your model, set:
+
+| Setting | Value |
+|---------|-------|
+| Context length | `32768` (32k — needed for large article batches) |
+| GPU layers | `Max` (offload everything to Metal) |
+| Keep model in memory | ✅ enabled |
+| Response format | leave default (JSON mode is enabled per-request) |
+
+Load your chosen model, then verify the server is running:
+```bash
+curl http://localhost:1234/v1/models
+```
+
+### Step 4 — Local image generation (replaces DALL-E 3)
+
+Install the `diffusers` library and its dependencies:
+
+```bash
+pip install diffusers transformers accelerate torch sentencepiece
+```
+
+**Model by RAM** (runs after LM Studio unloads the LLM — sequential, not simultaneous):
+
+| RAM | Model | Quality vs DALL-E 3 | Time per image |
+|-----|-------|---------------------|----------------|
+| 16 GB | SDXL 1.0 | ★★★★☆ | ~20–40s |
+| 24 GB | FLUX.1-schnell | ★★★★★ | ~30–60s |
+| **48 GB** | **FLUX.1-dev** ✅ | ★★★★★ on par | ~2–4 min |
+
+FLUX.1-dev at 48 GB produces images indistinguishable from DALL-E 3 for abstract technical art. It's downloaded automatically by `diffusers` on first run (~24 GB, cached in `~/.cache/huggingface`).
+
+> **Note**: FLUX.1-dev requires accepting the license at [huggingface.co/black-forest-labs/FLUX.1-dev](https://huggingface.co/black-forest-labs/FLUX.1-dev) and setting `HF_TOKEN` in your `.env`. FLUX.1-schnell has no license restriction.
+
+### Step 5 — Configure `.env` for local mode
+
+```env
+# ── LLM provider ──────────────────────────────────────
+LLM_PROVIDER=local               # anthropic | local
+LLM_BASE_URL=http://localhost:1234/v1
+LLM_MODEL=qwen2.5-72b-instruct  # must match the model name shown in LM Studio
+
+# ── Image provider ────────────────────────────────────
+IMAGE_PROVIDER=local             # openai | local
+# Options: flux-dev | flux-schnell | sdxl
+LOCAL_IMAGE_MODEL=flux-dev
+
+# Only needed for flux-dev (accept license on HuggingFace first)
+HF_TOKEN=hf_...
+
+# ── Cloud keys (leave blank to skip) ──────────────────
+ANTHROPIC_API_KEY=
+OPENAI_API_KEY=
+```
+
+> Pheme checks `LLM_PROVIDER` and `IMAGE_PROVIDER` on startup. If either is `local` and the
+> required service isn't reachable, it logs a warning and falls back to the cloud provider
+> if a key is present — or skips the step if not.
+
+### Expected daily run time by Mac configuration
+
+| Mac | LLM | Image | Total |
+|-----|-----|-------|-------|
+| M1/M2 16 GB | Phi-4 14B — ~12 min | SDXL — ~30s | ~13 min |
+| M2/M3 24 GB | Qwen 2.5 32B — ~8 min | FLUX.1-schnell — ~45s | ~9 min |
+| **M3/M4 48 GB** | **Qwen 2.5 72B — ~9 min** | **FLUX.1-dev — ~3 min** | **~12 min** |
+| M4 Pro 48 GB | Qwen 2.5 72B — ~7 min | FLUX.1-dev — ~2.5 min | ~10 min |
+
+All times are from a cold start. With LM Studio set to keep the model in memory, subsequent runs skip the load time (~2 min) and run ~30% faster.
+
+### Make sure LM Studio starts at login
+
+In LM Studio → **Preferences** → enable **"Launch at login"** and **"Start server on launch"**. This ensures the local API is always ready when Pheme's launchd job fires at 8am.
 
 ---
 
