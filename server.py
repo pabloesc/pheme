@@ -15,7 +15,13 @@ import sys
 from datetime import date
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from pathlib import Path
+from socketserver import ThreadingMixIn
 from urllib.parse import parse_qs, urlparse
+
+
+class ThreadedHTTPServer(ThreadingMixIn, HTTPServer):
+    """Handle each request in its own thread so concurrent hits don't block."""
+    daemon_threads = True
 
 from dotenv import load_dotenv
 load_dotenv()
@@ -73,6 +79,7 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(status)
         self.send_header("Content-Type", ctype)
         self.send_header("Content-Length", str(len(content)))
+        self.send_header("Cache-Control", "no-store")
         self.end_headers()
         self.wfile.write(content)
 
@@ -128,7 +135,7 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
-    httpd = HTTPServer(("127.0.0.1", PORT), Handler)
+    httpd = ThreadedHTTPServer(("127.0.0.1", PORT), Handler)
     print(f"[pheme-server] listening on http://127.0.0.1:{PORT}")
     try:
         httpd.serve_forever()
