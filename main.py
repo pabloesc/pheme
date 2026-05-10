@@ -3,6 +3,7 @@
 Pheme — daily MLOps newsletter agent.
 Run manually:  python main.py
 Dry-run:       python main.py --dry-run   (no email, no external API calls beyond Claude)
+Test mode:     python main.py --test      (3 articles, 2 repos, fast model output)
 """
 import sys
 from datetime import date
@@ -17,9 +18,9 @@ from repo_screenshot import screenshot_readme
 from mailer import send_newsletter
 
 
-def main(dry_run: bool = False) -> None:
+def main(dry_run: bool = False, test_mode: bool = False) -> None:
     today = date.today().isoformat()
-    print(f"[{today}] Pheme — starting")
+    print(f"[{today}] Pheme — starting{'  [TEST MODE]' if test_mode else ''}")
 
     print("  Fetching news...")
     items = fetch_all()
@@ -28,6 +29,11 @@ def main(dry_run: bool = False) -> None:
     print("  Fetching GitHub repos...")
     github_repos = fetch_github_repos()
     print(f"  Fetched {len(github_repos)} candidate repos")
+
+    if test_mode:
+        items = items[:3]
+        github_repos = (github_repos or [])[:2]
+        print(f"  [test] Trimmed to {len(items)} articles, {len(github_repos)} repos")
 
     if not items:
         print("  No articles found — skipping.")
@@ -72,4 +78,4 @@ def main(dry_run: bool = False) -> None:
 
 
 if __name__ == "__main__":
-    main(dry_run="--dry-run" in sys.argv)
+    main(dry_run="--dry-run" in sys.argv, test_mode="--test" in sys.argv)
