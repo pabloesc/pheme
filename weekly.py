@@ -25,7 +25,7 @@ from config import WEEKLY_MAX_ITEMS, WEEKLY_FALLBACK_ITEMS, WEEKLY_MIN_PICKS
 from fetcher import fetch_all, fetch_github_repos
 from processor import curate, ensure_model_loaded, unload_model
 from image_gen import generate_header_image
-from repo_screenshot import screenshot_readme
+from repo_screenshot import screenshot_readme  # noqa: F401 — used below
 from mailer import send_newsletter
 
 DATA_DIR = Path(__file__).parent / "data"
@@ -120,12 +120,22 @@ def main(dry_run: bool = False) -> None:
         print(f"  Header image failed ({e}) — continuing without")
         image_bytes = None
 
+    readme_bytes = None
+    repo = newsletter.get("repo_of_day")
+    if repo:
+        print(f"  Screenshotting README for {repo['full_name']}...")
+        readme_bytes = screenshot_readme(repo["full_name"])
+        if readme_bytes:
+            print(f"  README screenshot ready ({len(readme_bytes) // 1024} KB)")
+        else:
+            print("  README screenshot unavailable — continuing without")
+
     recipient = os.environ.get("RESEND_TO_WEEKLY", os.environ.get("RESEND_TO", "elterry1@gmail.com"))
     print(f"  Sending weekly digest to {recipient}...")
     send_newsletter(
         newsletter,
         image_bytes=image_bytes,
-        readme_bytes=None,
+        readme_bytes=readme_bytes,
         recipient=recipient,
         subject_prefix="Pheme Weekly",
         show_actions=False,
