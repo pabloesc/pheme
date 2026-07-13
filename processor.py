@@ -156,6 +156,41 @@ def _curate_anthropic(user_content: str) -> dict:
     return json.loads(response.content[0].text.strip())
 
 
+_NEWSLETTER_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "intro":        {"type": "string"},
+        "image_prompt": {"type": "string"},
+        "items": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "section": {"type": "string", "enum": SECTIONS},
+                    "title":   {"type": "string"},
+                    "url":     {"type": "string"},
+                    "source":  {"type": "string"},
+                    "summary": {"type": "string"},
+                },
+                "required": ["section", "title", "url", "source", "summary"],
+            },
+        },
+        "repo_of_day": {
+            "type": "object",
+            "properties": {
+                "full_name":   {"type": "string"},
+                "url":         {"type": "string"},
+                "description": {"type": "string"},
+                "stars":       {"type": "integer"},
+                "language":    {"type": "string"},
+            },
+            "required": ["full_name", "url", "description", "stars", "language"],
+        },
+    },
+    "required": ["intro", "image_prompt", "items", "repo_of_day"],
+}
+
+
 def _curate_local(user_content: str) -> dict:
     client = openai.OpenAI(
         base_url=os.environ.get("LLM_BASE_URL", "http://localhost:1234/v1"),
@@ -164,6 +199,8 @@ def _curate_local(user_content: str) -> dict:
     )
     model = os.environ.get("LLM_MODEL", "qwen2.5-72b-instruct")
     # Stream tokens so httpx doesn't fire a read-timeout during the long prefill phase.
+    # response_format with a JSON schema forces LM Studio into guided generation, so
+    # smaller models can't produce structurally-broken JSON.
     chunks: list[str] = []
     prompt_tokens = completion_tokens = 0
     with client.chat.completions.create(
@@ -174,6 +211,10 @@ def _curate_local(user_content: str) -> dict:
         ],
         max_tokens=int(os.environ.get("LLM_MAX_TOKENS", "4096")),
         temperature=0.3,
+        response_format={
+            "type": "json_schema",
+            "json_schema": {"name": "newsletter", "schema": _NEWSLETTER_SCHEMA, "strict": True},
+        },
         stream=True,
         stream_options={"include_usage": True},
     ) as stream:

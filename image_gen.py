@@ -10,8 +10,17 @@ _TARGET_W = 640
 _TARGET_H = 320
 
 
-def generate_header_image(image_prompt: str) -> bytes:
-    """Generate a header image for the newsletter and return resized JPEG bytes."""
+def generate_header_image(image_prompt: str) -> bytes | None:
+    """Generate a header image for the newsletter and return resized JPEG bytes.
+
+    Set IMAGE_PROVIDER=local (or =none) to skip image generation entirely — the
+    newsletter template already gates the hero <img> on has_image, so returning
+    None just drops the header banner cleanly.
+    """
+    if os.environ.get("IMAGE_PROVIDER", "openai").lower() in ("local", "none"):
+        print("  [image] IMAGE_PROVIDER=local — skipping header image generation.")
+        return None
+
     client = openai.OpenAI(api_key=os.environ["OPENAI_API_KEY"])
 
     response = client.images.generate(
