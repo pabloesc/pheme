@@ -19,6 +19,7 @@ from processor import curate, ensure_model_loaded, unload_model
 from config import DAILY_CANDIDATE_ITEMS
 from image_gen import generate_header_image
 from repo_screenshot import screenshot_readme
+from repo_history import filter_candidates, record_featured
 from mailer import send_newsletter
 
 
@@ -33,7 +34,10 @@ def main(dry_run: bool = False, test_mode: bool = False) -> None:
 
     print("  Fetching GitHub repos...")
     github_repos = fetch_github_repos()
-    print(f"  Fetched {len(github_repos)} candidate repos")
+    fetched_repo_count = len(github_repos)
+    github_repos = filter_candidates(github_repos)
+    print(f"  Fetched {fetched_repo_count} candidate repos "
+          f"({fetched_repo_count - len(github_repos)} excluded as recently featured)")
 
     items = items[:DAILY_CANDIDATE_ITEMS]
     print(f"  Using top {len(items)} candidates")
@@ -61,6 +65,10 @@ def main(dry_run: bool = False, test_mode: bool = False) -> None:
     print(f"  Selected {selected} items across {sections} sections")
     if repo:
         print(f"  Repo of the Day: {repo['full_name']}")
+        # Persist the pick so subsequent runs can exclude it from candidates.
+        # Skipped on --dry-run so debugging doesn't pollute history.
+        if not dry_run:
+            record_featured(repo["full_name"])
 
     # Save newsletter so weekly digest can reference it
     data_dir = Path(__file__).parent / "data"
@@ -76,7 +84,8 @@ def main(dry_run: bool = False, test_mode: bool = False) -> None:
     print("  Generating header image...")
     try:
         image_bytes = generate_header_image(newsletter["image_prompt"])
-        print(f"  Header image ready ({len(image_bytes) // 1024} KB)")
+        if image_bytes:
+            print(f"  Header image ready ({len(image_bytes) // 1024} KB)")
     except Exception as e:
         print(f"  Header image failed ({e}) — continuing without")
         image_bytes = None
