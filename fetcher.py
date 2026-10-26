@@ -1,8 +1,10 @@
 import os
+import re
 import feedparser
 import requests
 import time
 from datetime import datetime, timedelta, timezone
+from html import unescape
 from typing import TypedDict
 
 
@@ -20,6 +22,27 @@ RSS_FEEDS = [
     ("CNCF Blog",            "https://www.cncf.io/feed/"),
     ("DeepLearning.AI Batch","https://www.deeplearning.ai/the-batch/feed/"),
     ("Hugging Face Blog",    "https://huggingface.co/blog/feed.xml"),
+]
+
+# Substack newsletters for the "News" section. Not keyword-filtered: they're hand-picked,
+# and the Spanish ones wouldn't match the English KEYWORDS anyway.
+SUBSTACK_FEEDS = [
+    # English
+    ("Latent Space",         "https://www.latent.space/feed"),
+    ("Interconnects",        "https://www.interconnects.ai/feed"),
+    ("Ahead of AI",          "https://magazine.sebastianraschka.com/feed"),
+    ("Gradient Flow",        "https://gradientflow.substack.com/feed"),
+    ("SemiAnalysis",         "https://newsletter.semianalysis.com/feed"),
+    ("The Sequence",         "https://thesequence.substack.com/feed"),
+    ("Anthony Maio",         "https://anthonymaio.substack.com/feed"),
+    # Spanish — AI/tech subscriptions from substack.com/@pabloescone
+    ("Café con IA",          "https://cafeconia.substack.com/feed"),
+    ("IA en Español",        "https://aplicacionesai.substack.com/feed"),
+    ("Mafia IA",             "https://aimafia.substack.com/feed"),
+    ("Tu Dosis IA",          "https://tudosisia.substack.com/feed"),
+    ("Think & Hack",         "https://ainalluna.substack.com/feed"),
+    ("Tech 101",             "https://www.tech101.es/feed"),
+    ("Xataka",               "https://xataka.substack.com/feed"),
 ]
 
 KEYWORDS = {
@@ -80,6 +103,37 @@ def fetch_rss(cutoff_hours: int = 24) -> list[NewsItem]:
             pass
 
     return items
+
+
+def _strip_html(html: str) -> str:
+    return unescape(re.sub(r"<[^>]+>", " ", html))
+
+
+def fetch_substack(cutoff_days: int = 7, per_feed: int = 3) -> list[NewsItem]:
+    """Return the most recent posts from each Substack in SUBSTACK_FEEDS, newest first."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=cutoff_days)
+    posts: list[tuple[datetime, NewsItem]] = []
+
+    for source, url in SUBSTACK_FEEDS:
+        try:
+            feed = feedparser.parse(url, request_headers={"User-Agent": "pheme-bot/1.0"})
+            for entry in feed.entries[:per_feed]:
+                pub = _entry_published(entry)
+                if not pub or pub < cutoff:
+                    continue
+                title = entry.get("title", "").strip()
+                link  = entry.get("link", "").strip()
+                if not title or not link:
+                    continue
+                # Subtitle + the start of the body; paid posts only include the free preview
+                subtitle = entry.get("summary", "")
+                body     = entry.content[0].value if entry.get("content") else ""
+                snippet  = _truncate(_strip_html(f"{subtitle} — {body}"), max_chars=400)
+                posts.append((pub, {"title": title, "url": link, "source": source, "snippet": snippet}))
+        except Exception:
+            pass
+
+    return [item for _, item in sorted(posts, key=lambda p: p[0], reverse=True)]
 
 
 def fetch_hackernews(cutoff_hours: int = 24) -> list[NewsItem]:

@@ -14,11 +14,13 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from fetcher import fetch_all, fetch_github_repos
-from processor import curate, ensure_model_loaded, unload_model
-from config import DAILY_CANDIDATE_ITEMS
+from fetcher import fetch_all, fetch_github_repos, fetch_substack
+from processor import curate, ensure_model_loaded, unload_model, NEWS_SECTION
+from config import DAILY_CANDIDATE_ITEMS, NEWS_LOOKBACK_DAYS
 from image_gen import generate_header_image
 from repo_screenshot import screenshot_readme
+from repo_history import filter_candidates, record_featured
+from news_history import filter_news, record_news
 from mailer import send_newsletter
 
 
@@ -33,7 +35,17 @@ def main(dry_run: bool = False, test_mode: bool = False) -> None:
 
     print("  Fetching GitHub repos...")
     github_repos = fetch_github_repos()
-    print(f"  Fetched {len(github_repos)} candidate repos")
+    fetched_repo_count = len(github_repos)
+    github_repos = filter_candidates(github_repos)
+    print(f"  Fetched {fetched_repo_count} candidate repos "
+          f"({fetched_repo_count - len(github_repos)} excluded as recently featured)")
+
+    print("  Fetching Substack posts...")
+    substack_posts = fetch_substack(cutoff_days=NEWS_LOOKBACK_DAYS)
+    fetched_post_count = len(substack_posts)
+    substack_posts = filter_news(substack_posts)
+    print(f"  Fetched {fetched_post_count} Substack posts "
+          f"({fetched_post_count - len(substack_posts)} excluded as already featured)")
 
     items = items[:DAILY_CANDIDATE_ITEMS]
     print(f"  Using top {len(items)} candidates")
@@ -41,7 +53,9 @@ def main(dry_run: bool = False, test_mode: bool = False) -> None:
     if test_mode:
         items = items[:3]
         github_repos = (github_repos or [])[:2]
-        print(f"  [test] Trimmed to {len(items)} articles, {len(github_repos)} repos")
+        substack_posts = substack_posts[:3]
+        print(f"  [test] Trimmed to {len(items)} articles, {len(github_repos)} repos, "
+              f"{len(substack_posts)} Substack posts")
 
     if not items:
         print("  No articles found — skipping.")
@@ -50,8 +64,8 @@ def main(dry_run: bool = False, test_mode: bool = False) -> None:
     if provider == "local":
         ensure_model_loaded()
 
-    print("  Curating with Claude...")
-    newsletter = curate(items, github_repos)
+    print("  Curating...")
+    newsletter = curate(items, github_repos, substack_posts=substack_posts)
 
     if provider == "local":
         unload_model()
@@ -61,6 +75,13 @@ def main(dry_run: bool = False, test_mode: bool = False) -> None:
     print(f"  Selected {selected} items across {sections} sections")
     if repo:
         print(f"  Repo of the Day: {repo['full_name']}")
+        # Persist the pick so subsequent runs can exclude it from candidates.
+        # Skipped on --dry-run so debugging doesn't pollute history.
+        if not dry_run:
+            record_featured(repo["full_name"])
+    news_urls = [i["url"] for i in newsletter["items"] if i["section"] == NEWS_SECTION]
+    if news_urls and not dry_run:
+        record_news(news_urls)
 
     # Save newsletter so weekly digest can reference it
     data_dir = Path(__file__).parent / "data"
@@ -76,7 +97,8 @@ def main(dry_run: bool = False, test_mode: bool = False) -> None:
     print("  Generating header image...")
     try:
         image_bytes = generate_header_image(newsletter["image_prompt"])
-        print(f"  Header image ready ({len(image_bytes) // 1024} KB)")
+        if image_bytes:
+            print(f"  Header image ready ({len(image_bytes) // 1024} KB)")
     except Exception as e:
         print(f"  Header image failed ({e}) — continuing without")
         image_bytes = None

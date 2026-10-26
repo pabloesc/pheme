@@ -130,7 +130,7 @@ def main(dry_run: bool = False) -> None:
         else:
             print("  README screenshot unavailable — continuing without")
 
-    recipient = os.environ.get("RESEND_TO_WEEKLY", os.environ.get("RESEND_TO", "elterry1@gmail.com"))
+    recipient = os.environ.get("RESEND_TO_WEEKLY") or os.environ.get("RESEND_TO")
     print(f"  Sending weekly digest to {recipient}...")
     send_newsletter(
         newsletter,

@@ -7,26 +7,26 @@
 
     <key>ProgramArguments</key>
     <array>
-        <string>/Users/pablo.escobardelaoliva/newsletter-agent/.venv/bin/python</string>
-        <string>/Users/pablo.escobardelaoliva/newsletter-agent/main.py</string>
+        <string>/Users/pabloescobardelaoliva/pheme/run_daily.sh</string>
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/pablo.escobardelaoliva/newsletter-agent</string>
+    <string>/Users/pabloescobardelaoliva/pheme</string>
 
+    <!-- Local time (Europe/Madrid). If the Mac is asleep, launchd runs it on next wake. -->
     <key>StartCalendarInterval</key>
     <dict>
         <key>Hour</key>
-        <integer>8</integer>
+        <integer>6</integer>
         <key>Minute</key>
         <integer>0</integer>
     </dict>
 
     <key>StandardOutPath</key>
-    <string>/Users/pablo.escobardelaoliva/newsletter-agent/newsletter.log</string>
+    <string>/Users/pabloescobardelaoliva/pheme/newsletter.log</string>
 
     <key>StandardErrorPath</key>
-    <string>/Users/pablo.escobardelaoliva/newsletter-agent/newsletter.log</string>
+    <string>/Users/pabloescobardelaoliva/pheme/newsletter.log</string>
 
     <key>RunAtLoad</key>
     <false/>
