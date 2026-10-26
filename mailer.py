@@ -9,13 +9,14 @@ import resend
 from jinja2 import Environment, FileSystemLoader, select_autoescape
 from PIL import Image
 
-SECTION_ORDER = ["MLOps / ModelOps", "LLMOps / AgentOps", "Kubernetes & Compute", "Research"]
+SECTION_ORDER = ["MLOps / ModelOps", "LLMOps / AgentOps", "Kubernetes & Compute", "Research", "News"]
 
 SECTION_COLORS = {
     "MLOps / ModelOps":       "#2563eb",
     "LLMOps / AgentOps":      "#7c3aed",
     "Kubernetes & Compute":   "#059669",
     "Research":               "#d97706",
+    "News":                   "#db2777",
 }
 
 _IMAGE_CID  = "pheme-hero"
@@ -90,11 +91,14 @@ def send_newsletter(
     newsletter: dict,
     image_bytes: bytes | None = None,
     readme_bytes: bytes | None = None,
-    recipient: str = "elterry1@gmail.com",
+    recipient: str | None = None,
     subject_prefix: str = "Pheme",
     show_actions: bool = True,
 ) -> None:
     resend.api_key = os.environ["RESEND_API_KEY"]
+    recipient = recipient or os.environ.get("RESEND_TO")
+    if not recipient:
+        raise RuntimeError("No recipient — set RESEND_TO in .env")
 
     today      = date.today().strftime("%B %d, %Y")
     logo_bytes = _load_logo()
