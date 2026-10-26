@@ -1,204 +1,206 @@
 <div align="center">
-  <img src="assets/pheme-logo.png" width="180" alt="Pheme">
-</div>
+
+<img src="assets/pheme-logo.png" width="160" alt="Pheme">
 
 # Pheme
 
-> *In Greek mythology, Pheme was the goddess of fame, rumor, and news — with a hundred eyes, a hundred ears, and a hundred mouths, she spread word of events across the world.*
+**Your daily MLOps briefing, curated by an LLM and delivered to your inbox.**
 
-**Pheme** is an MLOps news agent that emails you a short daily briefing on MLOps, LLMOps, AgentOps, ModelOps, and Kubernetes compute — plus a GitHub "Repo of the Day" and an AI-generated header image.
+![Python](https://img.shields.io/badge/python-3.12-3776AB?logo=python&logoColor=white)
+![macOS](https://img.shields.io/badge/runs%20on-macOS-000000?logo=apple&logoColor=white)
+![Claude](https://img.shields.io/badge/LLM-Claude%20%7C%20LM%20Studio-D97757)
+![Resend](https://img.shields.io/badge/email-Resend-000000)
 
-- **Daily**: 4 curated stories across the sections, 1–3 Substack picks in **News**, and a Repo of the Day, sent to you, powered by Claude (or a local model) + DALL-E 3
-- **Weekly**: a digest of the stories you starred during the week
-- **Feedback**: ⭐ / 👍 / 👎 links in each email are recorded by a small local server
-- **Local mode**: run the curation on a Mac (Apple Silicon) with LM Studio — zero API cost
+*In Greek mythology, Pheme was the goddess of fame, rumor, and news — a hundred eyes, a hundred ears, a hundred mouths.*
 
----
-
-## Architecture
-
-```
-┌──────────────────────────────────────────────────────────────────┐
-│                         Daily (launchd)                          │
-│                                                                  │
-│  fetcher.py ──► processor.py ──► image_gen.py ──► mailer.py      │
-│  RSS + HN       Claude or        DALL-E 3          Resend        │
-│  + Reddit       LM Studio        header image      → RESEND_TO   │
-│  + GitHub       pick 4 stories                                   │
-│  + Substack     + 1–3 News      repo_screenshot.py               │
-│                 + Repo of the Day  README image                  │
-│                      │                                           │
-│                      ├──► data/YYYY-MM-DD.json                   │
-│                      ├──► repo_history.py (30-day no-repeat)     │
-│                      └──► news_history.py (30-day no-repeat)     │
-└──────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────┐
-│                     Background (optional)                        │
-│                                                                  │
-│  server.py  :8765                                                │
-│  ├─ /pick?id=...      ──► data/picks.json                        │
-│  ├─ /feedback?id=...  ──► data/feedback.json                     │
-│  └─ /health                                                      │
-└──────────────────────────────────────────────────────────────────┘
-
-┌──────────────────────────────────────────────────────────────────┐
-│                     Weekly (run manually)                        │
-│                                                                  │
-│  weekly.py                                                       │
-│  └─ reads picks.json                                             │
-│     ├─ ≥5 picks → up to 20 starred items                         │
-│     └─ <5 picks → fetch fresh news, curate 12                    │
-│     → Resend → RESEND_TO_WEEKLY (or RESEND_TO)                   │
-└──────────────────────────────────────────────────────────────────┘
-```
+</div>
 
 ---
 
-## How it works
+## ✨ What you get
 
-### Daily flow (`main.py`)
+Every morning, one email with:
 
-1. **Fetch** — `fetcher.py` collects the last 24 hours from:
-   - 6 RSS feeds: MLOps Community, The New Stack, Kubernetes Blog, CNCF, DeepLearning.AI, Hugging Face
-   - Hacker News Algolia API (6 topic queries)
-   - Reddit: `r/mlops`, `r/MachineLearning`, `r/kubernetes`, `r/LocalLLaMA`
-   - GitHub: recently active repos on MLOps/LLMOps topics (candidates for Repo of the Day)
-   - Substack: the last 7 days from 14 newsletters (up to 3 recent posts each), listed in `SUBSTACK_FEEDS` in `fetcher.py` — 7 in English (Latent Space, Interconnects, Ahead of AI, Gradient Flow, SemiAnalysis, The Sequence, Anthony Maio) and 7 in Spanish
-2. **Pre-filter** — keyword matching removes off-topic items; the top 12 candidates go to the model. Repos and Substack posts featured in the last 30 days are excluded. Substack posts skip the keyword filter (they're hand-picked sources).
-3. **Curate** — one LLM call selects 4 stories, assigns each to a section, picks 1–3 Substack posts for **News** (summarized in English, even when the post is in Spanish), writes 2–3 sentence summaries, picks the Repo of the Day, and writes an image prompt
-4. **Generate image** — `image_gen.py` calls DALL-E 3 and resizes to a 640×320 JPEG (skipped with `IMAGE_PROVIDER=none`)
-5. **Screenshot** — `repo_screenshot.py` renders the Repo of the Day's README with headless Chromium
-6. **Send** — HTML email with inline images delivered via Resend to `RESEND_TO`
-7. **Archive** — full JSON saved to `data/YYYY-MM-DD.json` (used by the weekly digest)
+| | |
+|--|--|
+| 📰 **4 stories** | MLOps, LLMOps / AgentOps, Kubernetes & compute, research — picked from RSS, Hacker News, Reddit |
+| 🗞️ **News** | 1–3 of the best posts from 14 Substack newsletters (English + Spanish, always summarized in English) |
+| ⭐ **Repo of the Day** | A trending GitHub repo with a screenshot of its README |
+| 🎨 **Header image** | Generated by DALL-E 3 (optional) |
 
-Sections: **MLOps / ModelOps**, **LLMOps / AgentOps**, **Kubernetes & Compute**, **Research**, **News** (Substack).
+<p align="center">
+  <img src="assets/email-header.jpeg" width="32%" alt="Header and daily intro">
+  <img src="assets/email-stories.jpeg" width="32%" alt="Story cards with feedback buttons">
+  <img src="assets/email-repo.jpeg" width="32%" alt="News and Repo of the Day">
+</p>
+<p align="center"><sub>A real issue from Oct 26, 2026</sub></p>
 
-To add or remove a Substack, edit `SUBSTACK_FEEDS` in `fetcher.py` — every publication has a feed at `<publication URL>/feed`. Paid posts only expose their free preview, so the summary is based on that.
+Plus a **weekly digest** of the stories you starred, and ⭐ / 👍 / 👎 links that record your feedback.
 
-Each email contains per-item links (handled by the background server):
-- ⭐ **Save for weekly** — marks the story for the weekly digest
-- 👍 / 👎 — feedback signals, stored in `data/feedback.json`
-
-### Weekly digest (`weekly.py`)
-
-```
-picks = starred items from the past 7 days
-
-if len(picks) >= 5:          # curated mode
-    send up to 20 starred items
-else:                        # fallback mode
-    fetch fresh news and curate 12 items
-```
+Runs on **Claude** in the cloud, or **fully local** on a Mac with LM Studio — zero API cost.
 
 ---
 
-## Post limits
+## 🚀 Quickstart
 
-Configured in `config.py`:
+```bash
+git clone https://github.com/pabloesc/pheme ~/pheme && cd ~/pheme
+uv venv --python 3.12 .venv && uv pip install --python .venv/bin/python -r requirements.txt
+.venv/bin/playwright install chromium          # for the README screenshot
+cp .env.example .env                           # add your keys and RESEND_TO
+.venv/bin/python main.py --dry-run --test      # preview — no email sent
+```
 
-| Constant | Default | Meaning |
-|--|--|--|
-| `DAILY_CANDIDATE_ITEMS` | 12 | Candidate articles sent to the model |
-| `DAILY_MAX_ITEMS` | 4 | Stories per daily newsletter (not counting News) |
-| `NEWS_MIN_ITEMS` / `NEWS_MAX_ITEMS` | 1 / 3 | Substack posts in the News section |
-| `NEWS_LOOKBACK_DAYS` | 7 | How far back to look for Substack posts |
-| `WEEKLY_MAX_ITEMS` | 20 | Max stories in a curated weekly (≥5 picks) |
-| `WEEKLY_FALLBACK_ITEMS` | 12 | Stories when fallback triggers (<5 picks) |
-| `WEEKLY_MIN_PICKS` | 5 | Star threshold before fallback kicks in |
+No `uv`? `python3.12 -m venv .venv && .venv/bin/pip install -r requirements.txt` works too.
+
+| Command | What it does |
+|--|--|
+| `python main.py --dry-run` | Fetch + curate, print the newsletter JSON. No image, no screenshot, no email |
+| `python main.py --dry-run --test` | Same, trimmed to 3 articles, 2 repos, 3 Substack posts — fast |
+| `python main.py --test` | Small run that **sends** the email |
+| `python main.py` | Full run: curate, image, screenshot, send to `RESEND_TO` |
+| `python weekly.py [--dry-run]` | Weekly digest |
+| `python server.py` | Feedback server on `:8765` (needed for ⭐ / 👍 / 👎 links) |
 
 ---
 
-## Project structure
+## 🧭 How it works
+
+```mermaid
+flowchart LR
+    subgraph Sources
+        A[RSS · Hacker News · Reddit]
+        B[GitHub repos]
+        C[14 Substacks]
+    end
+    A & B & C --> F[fetcher.py<br/>keyword filter + dedup]
+    F --> P[processor.py<br/>Claude or LM Studio]
+    P --> I[image_gen.py<br/>DALL-E 3]
+    P --> S[repo_screenshot.py<br/>Chromium]
+    I & S --> M[mailer.py<br/>Resend]
+    M --> E[(📬 RESEND_TO)]
+    P --> D[(data/YYYY-MM-DD.json)]
+```
+
+1. **Fetch** — the last 24 hours of news, recently active GitHub repos, and the last 7 days of Substack posts.
+2. **Filter** — keyword matching keeps the top 12 candidates. Repos and Substack posts featured in the last 30 days are skipped.
+3. **Curate** — one LLM call picks the stories, News and Repo of the Day, writes the summaries and an image prompt.
+4. **Render & send** — header image, README screenshot, HTML email via Resend.
+5. **Archive** — the newsletter is saved to `data/YYYY-MM-DD.json` for the weekly digest.
+
+<details>
+<summary><b>Sources</b></summary>
+
+- **RSS**: MLOps Community, The New Stack, Kubernetes Blog, CNCF, DeepLearning.AI, Hugging Face
+- **Hacker News** (Algolia API): 6 topic queries
+- **Reddit**: `r/mlops`, `r/MachineLearning`, `r/kubernetes`, `r/LocalLLaMA`
+- **GitHub**: recently active MLOps / LLMOps repos
+- **Substack** (`SUBSTACK_FEEDS` in `fetcher.py`):
+  - English — Latent Space, Interconnects, Ahead of AI, Gradient Flow, SemiAnalysis, The Sequence, Anthony Maio
+  - Spanish — Café con IA, IA en Español, Mafia IA, Tu Dosis IA, Think & Hack, Tech 101, Xataka
+
+To add a Substack, append it to `SUBSTACK_FEEDS` — every publication has a feed at `<publication URL>/feed`. Paid posts only expose their free preview. Substack posts skip the keyword filter, appear only in News, and at most one per publication per day.
+
+</details>
+
+<details>
+<summary><b>Weekly digest</b></summary>
+
+`weekly.py` reads the stories you starred in the past 7 days:
+
+- **5 or more stars** → sends up to 20 starred stories
+- **fewer than 5** → fetches fresh news and curates 12
+
+It sends to `RESEND_TO_WEEKLY`, or `RESEND_TO` if unset.
+
+</details>
+
+<details>
+<summary><b>Project structure</b></summary>
 
 ```
 pheme/
 ├── main.py              # Daily orchestrator
-├── fetcher.py           # News sources (RSS, HN, Reddit, GitHub, Substack)
-├── processor.py         # LLM curation (Claude or LM Studio) + image prompt
-├── image_gen.py         # DALL-E 3 header image generation
+├── fetcher.py           # Sources: RSS, HN, Reddit, GitHub, Substack
+├── processor.py         # LLM curation (Claude or LM Studio)
+├── image_gen.py         # DALL-E 3 header image
 ├── repo_screenshot.py   # README screenshot for the Repo of the Day
-├── repo_history.py      # 30-day exclusion so Repo of the Day doesn't repeat
-├── news_history.py      # 30-day exclusion so a Substack post isn't featured twice
-├── mailer.py            # HTML rendering + Resend send (inline images)
-├── config.py            # Post limits and tunable constants
-├── server.py            # Background server (:8765) for picks/feedback
+├── repo_history.py      # 30-day no-repeat for Repo of the Day
+├── news_history.py      # 30-day no-repeat for Substack posts
+├── mailer.py            # HTML rendering + Resend
+├── config.py            # Limits and tunables
+├── server.py            # Feedback server (:8765)
 ├── weekly.py            # Weekly digest
-├── templates/daily.html # Email template
-├── assets/              # Logo
-│
-├── data/                # Runtime data (gitignored)
-│   ├── YYYY-MM-DD.json  # Daily newsletter archives
-│   ├── picks.json       # Stories starred for the weekly digest
-│   └── feedback.json    # Thumbs up/down log
-│
-├── com.mlops.daily.plist    # macOS launchd: daily schedule
-├── .env                 # Your settings and secrets (gitignored)
-├── .env.example         # Reference template
-└── requirements.txt
+├── run_daily.sh         # launchd entry point (waits for network + LM Studio)
+├── com.mlops.daily.plist
+├── templates/daily.html
+└── data/                # Runtime data, gitignored (archives, picks, feedback)
 ```
+
+</details>
 
 ---
 
-## Setup
+## ⚙️ Configuration
 
-### 1. Install dependencies
+### `.env`
 
-```bash
-git clone https://github.com/pabloesc/pheme ~/pheme
-cd ~/pheme
-python3.12 -m venv .venv          # or: uv venv --python 3.12 .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-playwright install chromium       # for the README screenshot
-```
-
-### 2. Configure `.env`
-
-```bash
-cp .env.example .env
-```
-
-| Variable | Where to get it | Required for |
+| Variable | Required | Notes |
 |--|--|--|
-| `RESEND_API_KEY` | [resend.com/api-keys](https://resend.com/api-keys) | Email delivery |
-| `RESEND_FROM` | Your verified sender (or `onboarding@resend.dev` sandbox) | Daily email |
-| `RESEND_TO` | Your email address | Daily email recipient |
-| `RESEND_TO_WEEKLY` | Optional — defaults to `RESEND_TO` | Weekly email recipient |
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) | Curation (cloud mode) |
-| `OPENAI_API_KEY` | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) | Header image |
-| `IMAGE_PROVIDER` | `openai` (default) or `none` | Skip the header image |
-| `GITHUB_TOKEN` | [github.com/settings/tokens](https://github.com/settings/tokens) — no scopes | Optional, raises GitHub rate limit |
+| `RESEND_API_KEY` | ✅ | [resend.com/api-keys](https://resend.com/api-keys) |
+| `RESEND_FROM` | ✅ | Verified sender, or `onboarding@resend.dev` for testing |
+| `RESEND_TO` | ✅ | Where the daily goes |
+| `RESEND_TO_WEEKLY` | | Defaults to `RESEND_TO` |
+| `ANTHROPIC_API_KEY` | cloud mode | [console.anthropic.com](https://console.anthropic.com) |
+| `OPENAI_API_KEY` | header image | [platform.openai.com/api-keys](https://platform.openai.com/api-keys) |
+| `IMAGE_PROVIDER` | | `openai` (default) or `none` |
+| `GITHUB_TOKEN` | | No scopes needed — raises the GitHub rate limit |
 
-`.env` is gitignored, so your email address and keys stay on your machine.
+`.env` is gitignored: your address and keys stay on your machine.
 
-> With Resend's sandbox sender (`onboarding@resend.dev`), mail is only delivered to the address on your own Resend account. To send to anyone else, verify a domain at [resend.com/domains](https://resend.com/domains).
+> [!NOTE]
+> With the sandbox sender `onboarding@resend.dev`, Resend only delivers to the address on your own Resend account. To send to anyone else, [verify a domain](https://resend.com/domains).
 
-### 3. Test the daily
+### `config.py`
 
-```bash
-# Dry run — fetch + curate, prints JSON. No image, no screenshot, no email.
-python main.py --dry-run
+| Constant | Default | Meaning |
+|--|--|--|
+| `DAILY_CANDIDATE_ITEMS` | 12 | Candidates sent to the model |
+| `DAILY_MAX_ITEMS` | 4 | Stories per daily (not counting News) |
+| `NEWS_MIN_ITEMS` / `NEWS_MAX_ITEMS` | 1 / 3 | Substack posts in News |
+| `NEWS_LOOKBACK_DAYS` | 7 | How far back to look on Substack |
+| `WEEKLY_MAX_ITEMS` | 20 | Stories in a curated weekly |
+| `WEEKLY_FALLBACK_ITEMS` | 12 | Stories when the weekly falls back |
+| `WEEKLY_MIN_PICKS` | 5 | Stars needed to skip the fallback |
 
-# Test mode — trims input to 3 articles and 2 repos for a fast run
-python main.py --dry-run --test
+---
 
-# Full run — generates image and sends to RESEND_TO
-python main.py
+## 💻 Run it locally — zero API cost
+
+On Apple Silicon, [LM Studio](https://lmstudio.ai) can replace Claude for curation. Pheme forces JSON output with a schema, so mid-size models (~30B) work well — e.g. `qwen/qwen3.6-35b-a3b` on a 48 GB M5 Pro.
+
+```env
+LLM_PROVIDER=local                     # anthropic | local
+LLM_BASE_URL=http://localhost:1234/v1  # the port shown in LM Studio
+LLM_MODEL=qwen/qwen3.6-35b-a3b         # the model id in LM Studio
+LLM_CONTEXT_LENGTH=32768               # used if Pheme loads the model
+LLM_MAX_TOKENS=16384                   # reasoning tokens count toward this
+LLM_UNLOAD_AFTER=false                 # true = free the memory after each run
+IMAGE_PROVIDER=none                    # no local image model yet
 ```
 
-### 4. Start the background server (optional)
+Before curating, Pheme uses LM Studio's `lms` CLI (auto-detected in `~/.lmstudio/bin`, or set `LMS_PATH`) to start the server and load `LLM_MODEL` if needed. Text and multimodal ("vlm") models both work.
 
-```bash
-python server.py
-# Listening on http://localhost:8765
-```
+> [!IMPORTANT]
+> There is no automatic fallback to Claude: if `LLM_PROVIDER=local` and LM Studio isn't reachable, the run fails.
 
-The server must be running for ⭐/👍/👎 links in your email to register.
+Tip: in LM Studio → **Settings**, enable *start at login* and *start the server on launch*.
 
-### 5. Schedule with launchd (macOS)
+---
 
-`com.mlops.daily.plist` runs `run_daily.sh` every day at 06:00 local time. Edit the paths and time to match your machine, then:
+## ⏰ Schedule it (macOS)
+
+`com.mlops.daily.plist` runs `run_daily.sh` every day at 06:00. Edit the paths and time, then:
 
 ```bash
 mkdir -p ~/Library/LaunchAgents
@@ -206,60 +208,24 @@ cp com.mlops.daily.plist ~/Library/LaunchAgents/
 launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.mlops.daily.plist
 ```
 
-- If the Mac is asleep at the scheduled time, launchd runs the job when it wakes. `run_daily.sh` then waits up to ~3 minutes for the network and LM Studio before starting.
-- If the Mac is shut down at the scheduled time, that day's run is skipped.
-- Logs go to `newsletter.log` in the repo folder.
+- **Mac asleep at 06:00?** It runs on wake, after waiting up to ~3 min for the network and LM Studio.
+- **Mac shut down?** That day is skipped.
+- Logs go to `newsletter.log`.
 
 ---
 
-## Cost (cloud mode)
+## 💸 Cost (cloud mode)
 
-- **Curation**: one Claude call per day — a few cents with ~12 candidate articles
-- **Header image**: one DALL-E 3 image (1792×1024, standard) per day — see [OpenAI pricing](https://openai.com/api/pricing/); set `IMAGE_PROVIDER=none` to skip
-- **Email**: Resend's free tier covers 3,000 emails/month
-
----
-
-## Running locally on a Mac — zero API cost
-
-On Apple Silicon, LM Studio can run an open model that replaces Claude for curation. Unified memory lets a 48 GB Mac hold models that would need a large server GPU elsewhere.
-
-### Step 1 — Install LM Studio
-
-Download from [lmstudio.ai](https://lmstudio.ai) (free). It exposes an **OpenAI-compatible API**, by default at `http://localhost:1234/v1`. Start the server from the **Developer / Local Server** tab and download a model from **Discover**.
-
-Model guidance: pick the largest instruction-tuned model that fits comfortably in memory. Pheme forces JSON output with a schema, so mid-size models (~30B) work well. Example: `qwen/qwen3.6-35b-a3b` on an M5 Pro with 48 GB.
-
-### Step 2 — Configure `.env` for local mode
-
-```env
-LLM_PROVIDER=local                  # anthropic | local
-LLM_BASE_URL=http://localhost:1234/v1  # use the port shown in LM Studio
-LLM_MODEL=qwen/qwen3.6-35b-a3b      # must match the model id in LM Studio
-LLM_CONTEXT_LENGTH=32768            # used if Pheme has to load the model
-LLM_MAX_TOKENS=16384                # reasoning tokens count toward this
-LLM_UNLOAD_AFTER=false              # true = unload the model after each run
-IMAGE_PROVIDER=none                 # no local image model yet
-```
-
-Before curating, Pheme makes sure LM Studio is ready, using its `lms` CLI (found automatically in `~/.lmstudio/bin`, or set `LMS_PATH`):
-- if the server isn't running, it starts it
-- if no model is loaded, it loads `LLM_MODEL`
-- it leaves the model loaded afterwards, unless `LLM_UNLOAD_AFTER=true`
-
-Text-only and multimodal ("vlm") models both work.
-
-There is no automatic fallback: if `LLM_PROVIDER=local` and LM Studio isn't reachable, the run fails.
-
-### Step 3 — Start LM Studio at login
-
-In LM Studio → **Settings**, enable starting at login and starting the server on launch, so the API is ready when the launchd job fires.
+| | |
+|--|--|
+| Curation | One Claude call a day — a few cents |
+| Header image | One DALL-E 3 image a day ([pricing](https://openai.com/api/pricing/)) — or `IMAGE_PROVIDER=none` |
+| Email | Resend's free tier: 3,000 emails / month |
 
 ---
 
-## Roadmap
+## 🗺️ Roadmap
 
-Ideas not implemented yet:
-- **Self-improvement**: a weekly `refine.py` that reads 👍/👎 feedback and proposes changes to keywords, feeds and the curation prompt for approval
-- **Team weekly**: send the weekly to a Resend Audience with subscriber management
-- **Local header image**: FLUX / SDXL via `diffusers` instead of DALL-E 3
+- [ ] **Self-improvement** — weekly `refine.py` that turns 👍 / 👎 into proposed keyword, feed and prompt changes
+- [ ] **Team weekly** — send to a Resend Audience with subscriber management
+- [ ] **Local header image** — FLUX / SDXL via `diffusers`

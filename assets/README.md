@@ -10,3 +10,5 @@ Requirements:
 - Black lines on white — mailer.py auto-inverts to white-on-transparent for the dark header
 
 If the file is missing, the header renders without a logo (graceful fallback).
+
+The `email-*.jpeg` files are screenshots for the project README — the mailer doesn't use them.
